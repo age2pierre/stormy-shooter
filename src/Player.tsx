@@ -1,109 +1,121 @@
-import { animated, config, useSpring } from '@react-spring/three'
+import {
+  Lookup,
+  animated,
+  config,
+  useSpring,
+  useSpringRef,
+} from '@react-spring/three'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useBox, useKinematicCharacterController } from '@react-three/p2'
-import { useEffect, useRef, useState } from 'react'
-import type { Object3D } from 'three'
-import * as THREE from 'three'
+import { useEffect, useRef } from 'react'
 
-import { useControls } from './use-controls'
-import { PLAYER_GROUP, SCENERY_GROUP } from './index'
-import { proxy } from 'valtio'
-import { useTexture } from '@react-three/drei'
+import { useControls } from './useControls'
+import { proxy, useSnapshot } from 'valtio'
+import { useRapier } from './rapier'
+import { Collider, RigidBody } from '@dimforge/rapier2d-compat'
+import { Group } from 'three'
+import { Duplet } from '.'
+import { RoundedBox } from '@react-three/drei'
 
 const player_state = proxy<{
   facing: 'left' | 'right'
-  is_hurt: boolean
+  is_hurting: boolean
   lifes: number
   sprite_animation: 'idle' | 'running'
 }>({
   facing: 'right',
-  is_hurt: false,
+  is_hurting: false,
   lifes: 3,
   sprite_animation: 'idle',
 })
 
-export default (props: { position: [x: number, y: number] }) => {
+const PLAYER_SIZE = [1, 1] as const
+const SPEED = 0.1
+const COS_SPEED = Math.cos(Math.PI / 4) * SPEED
+
+export function Player({ position }: { position: [x: number, y: number] }) {
+  const bodyRef = useRef<RigidBody | null>(null)
+  const colliderRef = useRef<Collider | null>(null)
+  const groupRef = useRef<Group>(null)
+  const controls = useControls()
   const { camera } = useThree()
 
-  const body = useRef<Object3D>(null)
+  const {
+    characterController: character_controller,
+    rapier,
+    world,
+  } = useRapier()
 
-  const controls = useControls()
-  const rayData = useRef([])
-
-  const [, bodyApi] = useBox(
-    () => ({
-      mass: 0,
-      position: props.position,
-      fixedRotation: true,
-      damping: 0,
-      type: 'Kinematic',
-      collisionGroup: PLAYER_GROUP,
-    }),
-    body,
-  )
-
-  const [, controllerApi] = useKinematicCharacterController(() => ({
-    body,
-    collisionMask: SCENERY_GROUP,
-    velocityXSmoothing: 0.0001,
-    maxJumpHeight: 6,
+  const [springs, api] = useSpring<{
+    speed: Duplet
+    cameraPos: Duplet
+  }>(() => ({
+    speed: [0, 0],
+    cameraPos: position,
+    config: (key) =>
+      ({
+        speed: config.stiff,
+        cameraPos: config.molasses,
+      }[key]),
   }))
 
-  const collisions = useRef<{ below: boolean }>({ below: false })
-
-  const [yImpulse, setYImpulse] = useState(0)
-
-  const springs = useSpring({
-    from: {
-      scaleY: yImpulse,
-      scaleX: 1 + (1 - yImpulse) / 2,
-      positionY: yImpulse > 1 ? (yImpulse - 1) / 1.5 : yImpulse - 1,
-    },
-    to: { scaleY: 1, scaleX: 1, positionY: 0 },
-    config: config.wobbly,
-    reset: true,
-  })
-
   useEffect(() => {
-    controllerApi.raysData.subscribe((e) => {
-      rayData.current = e
-    })
-
-    controllerApi.collisions.subscribe((e: { below: boolean }) => {
-      if (e.below !== collisions.current.below && !e.below) setYImpulse(1.2) // jumped
-      if (e.below !== collisions.current.below && e.below) setYImpulse(0.8) // landed
-
-      collisions.current = e
-    })
-
-    bodyApi.position.subscribe((p) => {
-
-      camera.position.lerp({ x: p[0], y: p[1], z: 100 } as THREE.Vector3, 0.1)
-
-      camera.lookAt(p[0], p[1], 0)
-    })
+    bodyRef.current = world.createRigidBody(
+      rapier.RigidBodyDesc.kinematicPositionBased().setTranslation(...position),
+    )
+    colliderRef.current = world.createCollider(
+      rapier.ColliderDesc.cuboid(PLAYER_SIZE[0] / 2, PLAYER_SIZE[1] / 2),
+      bodyRef.current,
+    )
+    return () => {
+      if (bodyRef.current) {
+        world.removeRigidBody(bodyRef.current)
+      }
+    }
   }, [])
 
   useFrame(() => {
-    const { jump, left, right } = controls.current
+    const { shoot, left, right, up, down } = controls.current
 
-    controllerApi.setJump(jump)
+    if (colliderRef.current && bodyRef.current && groupRef.current) {
+      const diag = (left || right) && (up || down)
+      const speed = diag ? COS_SPEED : SPEED
 
-    controllerApi.setInput([~~right - ~~left, 0])
+      const speedTarget = springs.speed.get()
+      character_controller.computeColliderMovement(colliderRef.current, {
+        x: speedTarget[0],
+        y: speedTarget[1],
+      })
+      const movement = character_controller.computedMovement()
+      // const grounded = character_controller.computedGrounded()
+
+      const newPos = bodyRef.current.translation()
+      newPos.x += movement.x
+      newPos.y += movement.y
+      bodyRef.current.setNextKinematicTranslation(newPos)
+
+      const { x, y } = bodyRef.current.translation()
+      groupRef.current.position.x = x
+      groupRef.current.position.y = y
+
+      api.start({
+        speed: [
+          left ? speed : right ? -speed : 0,
+          up ? speed : down ? -speed : 0,
+        ],
+        cameraPos: [x, y],
+      })
+
+      const cameraPos = springs.cameraPos.get()
+      camera.position.x = cameraPos[0]
+      camera.position.y = cameraPos[1]
+    }
   })
 
-  // const sprite_texture = useTexture()
-
   return (
-    <group ref={body as any}>
-      <animated.mesh
-        scale-y={springs.scaleY}
-        scale-x={springs.scaleX}
-        position-y={springs.positionY}
-      >
-        <boxGeometry args={[1, 1]} />
+    <group ref={groupRef}>
+      <RoundedBox args={PLAYER_SIZE as Duplet} radius={0.2}>
         <meshNormalMaterial />
-      </animated.mesh>
+      </RoundedBox>
     </group>
   )
 }

@@ -27,11 +27,13 @@ const KEY_CONTROL_MAP = {
   ' ': 'shoot',
   ArrowLeft: 'left',
   ArrowRight: 'right',
-  ArrowUp: 'jump',
+  ArrowUp: 'up',
+  ArrowDown: 'down',
   q: 'left',
   d: 'right',
+  s: 'down',
+  z: 'up',
   r: 'reset',
-  z: 'jump',
 } as const
 
 type KeyCode = keyof typeof KEY_CONTROL_MAP
@@ -43,7 +45,8 @@ const isKeyCode = (v: unknown): v is KeyCode => keyCodes.includes(v as KeyCode)
 export function useControls() {
   const controls = useRef<Record<GameControl, boolean>>({
     shoot: false,
-    jump: false,
+    up: false,
+    down: false,
     left: false,
     reset: false,
     right: false,
