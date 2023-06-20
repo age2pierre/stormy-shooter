@@ -10,3 +10,6 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
 
 export const SCENERY_GROUP = 1 << 0
 export const PLAYER_GROUP = 1 << 1
+export const ENEMY_GROUP = 1 << 2
+export const BULLET_GROUP = 1 << 3
+

@@ -5,6 +5,7 @@ import Platform from './Platform'
 import Player from './Player'
 import { useEffect } from 'react'
 import { proxy, useSnapshot } from 'valtio'
+import { Bullet } from './Bullet'
 
 const game_store = proxy({
   paused: false,
@@ -13,11 +14,9 @@ const game_store = proxy({
 export default function App() {
   useEffect(() => {
     const onOutOfFocus = () => {
-      console.log('focus out')
       game_store.paused = true
     }
     const onFocus = () => {
-      console.log('focus out')
       game_store.paused = false
     }
     window.onblur = onOutOfFocus
@@ -35,8 +34,19 @@ export default function App() {
       <Canvas camera={{ position: [0, 0, 0], zoom: 5 }}>
         <Physics normalIndex={2} isPaused={paused}>
           {/* <Debug normalIndex={2} linewidth={0.001}> */}
-          <Player position={[-7, 14]} />
-          <Box args={[1, 5]} position={[-2, 3]} />
+          <Player position={[0, 2]} />
+          <Bullet
+            direction="left"
+            init_position={[0, 5]}
+            onTimeout={() => {
+              console.log('bullet timeout')
+            }}
+            onCollide={(e) => {
+              console.log('bullet collide')
+              console.debug(e)
+            }}
+          />
+          <Box args={[1, 1]} position={[0, 0]} />
           <Box args={[8, 1]} position={[-15, 5]} />
           <Box args={[16, 1]} position={[-4, 0]} />
           <Box args={[40, 1]} position={[0, -5]} />

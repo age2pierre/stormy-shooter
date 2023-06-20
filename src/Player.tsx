@@ -28,8 +28,6 @@ export default (props: { position: [x: number, y: number] }) => {
   const body = useRef<Object3D>(null)
 
   const controls = useControls()
-
-  const bodyPosition = useRef<[x: number, y: number]>()
   const rayData = useRef([])
 
   const [, bodyApi] = useBox(
@@ -72,7 +70,6 @@ export default (props: { position: [x: number, y: number] }) => {
     })
 
     controllerApi.collisions.subscribe((e: { below: boolean }) => {
-      //console.log(e);
       if (e.below !== collisions.current.below && !e.below) setYImpulse(1.2) // jumped
       if (e.below !== collisions.current.below && e.below) setYImpulse(0.8) // landed
 
@@ -80,7 +77,6 @@ export default (props: { position: [x: number, y: number] }) => {
     })
 
     bodyApi.position.subscribe((p) => {
-      bodyPosition.current = p
 
       camera.position.lerp({ x: p[0], y: p[1], z: 100 } as THREE.Vector3, 0.1)
 

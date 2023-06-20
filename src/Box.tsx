@@ -18,7 +18,7 @@ export function Box({
     collisionGroup: SCENERY_GROUP,
   }))
   return (
-    <mesh ref={ref}>
+    <mesh ref={ref as any}>
       <boxGeometry args={[...args, 3]} />
       <meshNormalMaterial />
     </mesh>
