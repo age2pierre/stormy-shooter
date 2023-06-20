@@ -1,4 +1,4 @@
-import { Duplet, useCircle } from '@react-three/p2'
+import { Duplet, useBox, useCircle } from '@react-three/p2'
 import { useEffect, useRef } from 'react'
 import { BULLET_GROUP, ENEMY_GROUP, PLAYER_GROUP, SCENERY_GROUP } from '.'
 import { useFrame } from '@react-three/fiber'
@@ -23,21 +23,26 @@ export function Bullet(props: {
   onTimeout: () => void
 }) {
   const counter_ms = useRef(0)
-  const [group_ref , circle_api] = useCircle(() => ({
-    type: 'Kinematic',
-    mass: 0,
-    args: [0.3],
+  const has_timeout = useRef(false)
+  const [group_ref] = useBox(() => ({
+    mass: Number.EPSILON,
+    args: [0.3, 0.3],
+    linearDamping: 0,
+    angularDamping: 0,
     position: props.init_position,
-    // collisionFilterGroup: BULLET_GROUP,
-    // collisionFilterMask: ENEMY_GROUP | SCENERY_GROUP,
+    velocity: [(props.speed ?? 20) * (props.direction === 'left' ? -1 : 1), 0],
+    allowSleep: false,
+    collisionResponse: false,
+    collisionFilterGroup: BULLET_GROUP,
+    collisionFilterMask: ENEMY_GROUP | SCENERY_GROUP,
     onCollide: (e) => {
       console.log('Bullet onCollide')
-      if (e.collisionFilters.targetFilterGroup === SCENERY_GROUP) {
+      if (e.collisionFilters.bodyFilterGroup === SCENERY_GROUP) {
         props.onCollide?.({
           type: 'scenery',
         })
       }
-      if (e.collisionFilters.targetFilterGroup === ENEMY_GROUP) {
+      if (e.collisionFilters.bodyFilterGroup === ENEMY_GROUP) {
         props.onCollide?.({
           type: 'enemy',
         })
@@ -45,17 +50,11 @@ export function Bullet(props: {
     },
   }))
 
-  useEffect(() => {
-    circle_api.velocity.set(
-      (props.speed ?? 5) * (props.direction === 'left' ? -1 : 1),
-      0,
-    )
-  }, [])
-
   useFrame((_, delta) => {
     counter_ms.current += delta
 
-    if ((props.ttl ?? 3) <= counter_ms.current) {
+    if (!has_timeout.current && (props.ttl ?? 10) <= counter_ms.current) {
+      has_timeout.current = true
       props.onTimeout()
     }
   })

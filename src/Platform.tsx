@@ -61,7 +61,7 @@ export default ({
   })
 
   return (
-    <mesh ref={ref}>
+    <mesh ref={ref as any}>
       <boxGeometry args={[...args, 2]} />
       <meshNormalMaterial />
     </mesh>

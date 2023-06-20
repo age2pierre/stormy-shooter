@@ -42,15 +42,15 @@ export default function App() {
               console.log('bullet timeout')
             }}
             onCollide={(e) => {
-              console.log('bullet collide')
+              console.log('bullet onCollide')
               console.debug(e)
             }}
           />
-          <Box args={[1, 1]} position={[0, 0]} />
           <Box args={[8, 1]} position={[-15, 5]} />
-          <Box args={[16, 1]} position={[-4, 0]} />
           <Box args={[40, 1]} position={[0, -5]} />
+          <Box args={[40, 1]} position={[1, -7]} />
           <Box args={[1, 6]} position={[2, 8]} />
+          <Box args={[1, 10]} position={[-8, 0]} />
           <Box args={[3, 3]} position={[-3, 9]} />
           <Box args={[3, 3]} position={[-3, 9]} />
           <Box args={[1, 10]} position={[14, 8]} angle={-Math.PI / 4} />
