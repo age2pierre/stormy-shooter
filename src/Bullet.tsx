@@ -24,14 +24,16 @@ export function Bullet(props: {
 }) {
   const counter_ms = useRef(0)
   const has_timeout = useRef(false)
-  const [group_ref] = useBox(() => ({
-    mass: Number.EPSILON,
+  const [group_ref, kinematic_api] = useBox(() => ({
+    type: 'Kinematic',
     args: [0.3, 0.3],
-    linearDamping: 0,
-    angularDamping: 0,
     position: props.init_position,
     velocity: [(props.speed ?? 20) * (props.direction === 'left' ? -1 : 1), 0],
     allowSleep: false,
+  }))
+  const [, dynamic_api] = useBox(() => ({
+    mass: Number.EPSILON,
+    args: [0.3, 0.3],
     collisionResponse: false,
     collisionFilterGroup: BULLET_GROUP,
     collisionFilterMask: ENEMY_GROUP | SCENERY_GROUP,
@@ -58,6 +60,14 @@ export function Bullet(props: {
       props.onTimeout()
     }
   })
+
+  // weird bug, can't make collision work directly with Kinematic bodies
+  // use this trick to copy position of kinematic body to a dynamic one
+  useEffect(() => {
+    kinematic_api.position.subscribe(val => {
+      dynamic_api.position.set(val[0], val[1])
+    })
+  }, [])
 
   return (
     <group ref={group_ref as any}>
