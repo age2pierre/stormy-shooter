@@ -7,6 +7,20 @@ import * as THREE from 'three'
 
 import { useControls } from './use-controls'
 import { PLAYER_GROUP, SCENERY_GROUP } from './index'
+import { proxy } from 'valtio'
+import { useTexture } from '@react-three/drei'
+
+const player_state = proxy<{
+  facing: 'left' | 'right'
+  is_hurt: boolean
+  lifes: number
+  sprite_animation: 'idle' | 'running'
+}>({
+  facing: 'right',
+  is_hurt: false,
+  lifes: 3,
+  sprite_animation: 'idle',
+})
 
 export default (props: { position: [x: number, y: number] }) => {
   const { camera } = useThree()
@@ -34,7 +48,7 @@ export default (props: { position: [x: number, y: number] }) => {
     body,
     collisionMask: SCENERY_GROUP,
     velocityXSmoothing: 0.0001,
-    maxJumpHeight: 6
+    maxJumpHeight: 6,
   }))
 
   const collisions = useRef<{ below: boolean }>({ below: false })
@@ -81,6 +95,8 @@ export default (props: { position: [x: number, y: number] }) => {
 
     controllerApi.setInput([~~right - ~~left, 0])
   })
+
+  // const sprite_texture = useTexture()
 
   return (
     <group ref={body as any}>
