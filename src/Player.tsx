@@ -34,6 +34,7 @@ export default (props: { position: [x: number, y: number] }) => {
     body,
     collisionMask: SCENERY_GROUP,
     velocityXSmoothing: 0.0001,
+    maxJumpHeight: 6
   }))
 
   const collisions = useRef<{ below: boolean }>({ below: false })
@@ -82,13 +83,13 @@ export default (props: { position: [x: number, y: number] }) => {
   })
 
   return (
-    <group ref={body}>
+    <group ref={body as any}>
       <animated.mesh
         scale-y={springs.scaleY}
         scale-x={springs.scaleX}
         position-y={springs.positionY}
       >
-        <boxBufferGeometry args={[1, 1]} />
+        <boxGeometry args={[1, 1]} />
         <meshNormalMaterial />
       </animated.mesh>
     </group>
