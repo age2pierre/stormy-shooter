@@ -4,8 +4,16 @@ import { useEffect } from 'react'
 import { proxy } from 'valtio'
 import { Physics } from './rapier'
 import { Box } from './Box'
-import { AdaptiveDpr, Plane, Sphere } from '@react-three/drei'
+import { AdaptiveDpr, Plane, Sky, Sphere } from '@react-three/drei'
 import { Projectile } from './Projectile'
+import {
+  ChromaticAberration,
+  EffectComposer,
+  Glitch,
+  Scanline,
+  Vignette,
+} from '@react-three/postprocessing'
+import { BlendFunction, GlitchMode } from 'postprocessing'
 
 export const game_store = proxy({
   paused: false,
@@ -46,6 +54,25 @@ export default function App() {
           max: 1,
         }}
       >
+        <Sky
+          distance={450000}
+          sunPosition={[0, -1, 0]}
+          inclination={0}
+          azimuth={0.1}
+        />
+        <EffectComposer>
+          <Vignette offset={0.3} darkness={0.6} eskil={false} />
+          <ChromaticAberration
+            modulationOffset={0.1}
+            radialModulation={true}
+            offset={[0.005, 0.01] as any}
+          />
+          <Scanline
+            density={0.5}
+            blendFunction={BlendFunction.OVERLAY}
+            opacity={0.05}
+          />
+        </EffectComposer>
         <Plane
           args={[100, 100]}
           rotation-x={Math.PI}

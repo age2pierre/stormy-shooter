@@ -11,18 +11,19 @@ import crosshairUrl from './crosshair.png'
 import trooperUrl from './trooper.png'
 
 import { useControls } from './useControls'
-import { proxy, useSnapshot } from 'valtio'
+import { proxy } from 'valtio'
 import { useRapier } from './rapier'
 import { Collider, RigidBody } from '@dimforge/rapier2d-compat'
-import { Group, NearestFilter, PlaneGeometry, Texture, Vector2 } from 'three'
-import { Duplet } from '.'
 import {
-  Billboard,
-  Plane,
-  RoundedBox,
-  Shadow,
-  useTexture,
-} from '@react-three/drei'
+  DoubleSide,
+  Group,
+  NearestFilter,
+  PlaneGeometry,
+  Texture,
+  Vector2,
+} from 'three'
+import { Duplet } from '.'
+import { Plane, Shadow, useTexture } from '@react-three/drei'
 import { MOUSE_POSITION } from './App'
 
 const player_state = proxy<{
@@ -37,7 +38,7 @@ const player_state = proxy<{
   sprite_animation: 'idle',
 })
 
-const SPEED = 0.1
+const SPEED = 0.15
 const COS_SPEED = Math.cos(Math.PI / 4) * SPEED
 const COOLDOWN_SHOOT = 0.5
 
@@ -54,6 +55,8 @@ export function Player({
   const colliderRef = useRef<Collider | null>(null)
   const groupRef = useRef<Group>(null)
   const crosshairGroupRef = useRef<Group>(null)
+  const trooperGroupRef = useRef<Group>(null)
+  const elapsedTime = useRef(0)
   const controls = useControls()
   const { camera } = useThree()
 
@@ -81,7 +84,7 @@ export function Player({
       rapier.RigidBodyDesc.kinematicPositionBased().setTranslation(...position),
     )
     colliderRef.current = world.createCollider(
-      rapier.ColliderDesc.cuboid(0.5, 0.5),
+      rapier.ColliderDesc.cuboid(0.5, 0.7),
       bodyRef.current,
     )
     return () => {
@@ -91,7 +94,8 @@ export function Player({
     }
   }, [])
 
-  useFrame(() => {
+  useFrame((_, dt) => {
+    elapsedTime.current += dt
     const { shoot, left, right, up, down } = controls.current
 
     if (colliderRef.current && bodyRef.current && groupRef.current) {
@@ -128,14 +132,24 @@ export function Player({
       camera.position.x = cameraPos[0]
       camera.position.y = cameraPos[1]
 
-      if (crosshairGroupRef.current) {
+      if (crosshairGroupRef.current && trooperGroupRef.current) {
         // compute crosshair angle
         const { x: crosshair_x, y: crosshair_y } = vec2
           .set(MOUSE_POSITION.x - x, MOUSE_POSITION.y - y)
           .normalize()
-          .multiplyScalar(1.2)
+          .multiplyScalar(1.5)
         crosshairGroupRef.current.position.x = crosshair_x
         crosshairGroupRef.current.position.y = crosshair_y
+
+        trooperGroupRef.current.scale.x = crosshair_x > 0 ? 1 : -1
+      }
+      if (trooperGroupRef.current) {
+        const { x, y } = bodyRef.current.linvel()
+        const speedRatio = (Math.abs(x) + Math.abs(y)) / (SPEED * 50)
+        const sinedTime = Math.sin(elapsedTime.current * 10)
+        trooperGroupRef.current.position.y = (sinedTime / 30) * (1 - speedRatio)
+        trooperGroupRef.current.rotation.z =
+          (sinedTime / 15) * speedRatio - Math.PI
       }
     }
   })
@@ -153,22 +167,30 @@ export function Player({
 
   return (
     <group ref={groupRef}>
-      <Shadow rotation-x={Math.PI} scale={2} position={[0, -0.5, -0.1]} />
-      <Plane
-        position={[0.2, 0, -0.2]}
+      <Shadow
+        rotation-x={Math.PI}
+        scale={2}
+        position-z={-0.1}
+        colorStop={0.1}
+      />
+      <group
+        ref={trooperGroupRef}
+        position-z={-0.2}
         rotation={[Math.PI, 0, Math.PI]}
-        args={[1.5, 1.5]}
       >
-        <meshStandardMaterial
-          color={0xffffff}
-          alphaTest={1}
-          map={trooperTexture}
-          transparent
-        />
-      </Plane>
+        <Plane args={[2, 2]}>
+          <meshStandardMaterial
+            side={DoubleSide}
+            color={0xffffff}
+            alphaTest={1}
+            map={trooperTexture}
+            transparent
+          />
+        </Plane>
+      </group>
       <group
         ref={crosshairGroupRef}
-        position={[-1, -1, -0.3]}
+        position-z={-0.3}
         rotation={[Math.PI, 0, 0]}
       >
         <Plane args={[0.7, 0.7]}>

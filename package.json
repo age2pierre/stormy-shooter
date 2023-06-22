@@ -5,16 +5,17 @@
   "keywords": [],
   "main": "src/index.js",
   "dependencies": {
+    "@dimforge/rapier2d-compat": "0.11.2",
     "@react-spring/three": "^9.7.2",
     "@react-three/drei": "^9.77.0",
     "@react-three/fiber": "^8.13.3",
+    "@react-three/postprocessing": "^2.14.11",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "three": "^0.153.0",
     "three-stdlib": "^2.23.10",
-    "valtio": "^1.10.5",
-    "@dimforge/rapier2d-compat": "0.11.2",
-    "use-asset": "1.0.4"
+    "use-asset": "1.0.4",
+    "valtio": "^1.10.5"
   },
   "scripts": {
     "build": "tsc && vite build",
@@ -28,14 +29,14 @@
     "not op_mini all"
   ],
   "devDependencies": {
-    "eslint": "^8.43.0",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-refresh": "^0.4.1",
     "@types/node": "^18.12.1",
     "@types/react": "^18.2.13",
     "@types/react-dom": "^18.2.6",
     "@types/three": "^0.152.1",
     "@vitejs/plugin-react-refresh": "^1.3.6",
+    "eslint": "^8.43.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.1",
     "typescript": "^4.5.4",
     "vite": "^2.8.4",
     "vite-react-jsx": "^1.1.2"
