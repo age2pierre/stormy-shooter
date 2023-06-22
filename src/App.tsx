@@ -4,12 +4,17 @@ import { useEffect } from 'react'
 import { proxy } from 'valtio'
 import { Physics } from './rapier'
 import { Box } from './Box'
-import { AdaptiveDpr, Sphere } from '@react-three/drei'
+import { AdaptiveDpr, Plane, Sphere } from '@react-three/drei'
 import { Projectile } from './Projectile'
 
 export const game_store = proxy({
   paused: false,
 })
+
+export const MOUSE_POSITION = {
+  x: 0,
+  y: 0,
+}
 
 export default function App() {
   useEffect(() => {
@@ -34,13 +39,26 @@ export default function App() {
           position: [0, 0, -15],
           zoom: 1,
           fov: 70,
-          rotation: [Math.PI, 0, Math.PI],
+          rotation: [Math.PI - 0.2, 0, Math.PI],
         }}
         performance={{
           min: 0.1,
           max: 1,
         }}
       >
+        <Plane
+          args={[100, 100]}
+          rotation-x={Math.PI}
+          position={[0, 0, 0]}
+          onPointerMove={(event) => {
+            const { x, y } = event.point
+            MOUSE_POSITION.x = x
+            MOUSE_POSITION.y = y
+          }}
+        >
+          <meshStandardMaterial opacity={0} transparent />
+        </Plane>
+        <ambientLight />
         <AdaptiveDpr pixelated />
         <Physics>
           <Player position={[0, 2]} />

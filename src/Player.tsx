@@ -6,15 +6,24 @@ import {
   useSpringRef,
 } from '@react-spring/three'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useRef } from 'react'
+import { ReactNode, useEffect, useRef } from 'react'
+import crosshairUrl from './crosshair.png'
+import trooperUrl from './trooper.png'
 
 import { useControls } from './useControls'
 import { proxy, useSnapshot } from 'valtio'
 import { useRapier } from './rapier'
 import { Collider, RigidBody } from '@dimforge/rapier2d-compat'
-import { Group } from 'three'
+import { Group, NearestFilter, PlaneGeometry, Texture, Vector2 } from 'three'
 import { Duplet } from '.'
-import { RoundedBox } from '@react-three/drei'
+import {
+  Billboard,
+  Plane,
+  RoundedBox,
+  Shadow,
+  useTexture,
+} from '@react-three/drei'
+import { MOUSE_POSITION } from './App'
 
 const player_state = proxy<{
   facing: 'left' | 'right'
@@ -28,14 +37,23 @@ const player_state = proxy<{
   sprite_animation: 'idle',
 })
 
-const PLAYER_SIZE = [1, 1] as const
 const SPEED = 0.1
 const COS_SPEED = Math.cos(Math.PI / 4) * SPEED
+const COOLDOWN_SHOOT = 0.5
 
-export function Player({ position }: { position: [x: number, y: number] }) {
+const vec2 = new Vector2(0, 0)
+
+export function Player({
+  position,
+  children,
+}: {
+  position: [x: number, y: number]
+  children?: ReactNode
+}) {
   const bodyRef = useRef<RigidBody | null>(null)
   const colliderRef = useRef<Collider | null>(null)
   const groupRef = useRef<Group>(null)
+  const crosshairGroupRef = useRef<Group>(null)
   const controls = useControls()
   const { camera } = useThree()
 
@@ -63,7 +81,7 @@ export function Player({ position }: { position: [x: number, y: number] }) {
       rapier.RigidBodyDesc.kinematicPositionBased().setTranslation(...position),
     )
     colliderRef.current = world.createCollider(
-      rapier.ColliderDesc.cuboid(PLAYER_SIZE[0] / 2, PLAYER_SIZE[1] / 2),
+      rapier.ColliderDesc.cuboid(0.5, 0.5),
       bodyRef.current,
     )
     return () => {
@@ -80,23 +98,24 @@ export function Player({ position }: { position: [x: number, y: number] }) {
       const diag = (left || right) && (up || down)
       const speed = diag ? COS_SPEED : SPEED
 
+      // get spring'd speed
       const speedTarget = springs.speed.get()
+      // compute movement with collisions
       character_controller.computeColliderMovement(colliderRef.current, {
         x: speedTarget[0],
         y: speedTarget[1],
       })
       const movement = character_controller.computedMovement()
-      // const grounded = character_controller.computedGrounded()
-
+      // update body position
       const newPos = bodyRef.current.translation()
       newPos.x += movement.x
       newPos.y += movement.y
       bodyRef.current.setNextKinematicTranslation(newPos)
-
+      // update mesh positon
       const { x, y } = bodyRef.current.translation()
       groupRef.current.position.x = x
       groupRef.current.position.y = y
-
+      // set spring (player and camera) target values
       api.start({
         speed: [
           left ? speed : right ? -speed : 0,
@@ -104,18 +123,62 @@ export function Player({ position }: { position: [x: number, y: number] }) {
         ],
         cameraPos: [x, y],
       })
-
+      // update camera position
       const cameraPos = springs.cameraPos.get()
       camera.position.x = cameraPos[0]
       camera.position.y = cameraPos[1]
+
+      if (crosshairGroupRef.current) {
+        // compute crosshair angle
+        const { x: crosshair_x, y: crosshair_y } = vec2
+          .set(MOUSE_POSITION.x - x, MOUSE_POSITION.y - y)
+          .normalize()
+          .multiplyScalar(1.2)
+        crosshairGroupRef.current.position.x = crosshair_x
+        crosshairGroupRef.current.position.y = crosshair_y
+      }
     }
   })
 
+  const [crosshairTexture, trooperTexture] = useTexture(
+    [crosshairUrl, trooperUrl],
+    (textures) => {
+      if (!Array.isArray(textures)) return
+      textures.forEach((texture) => {
+        texture.minFilter = NearestFilter
+        texture.magFilter = NearestFilter
+      })
+    },
+  )
+
   return (
     <group ref={groupRef}>
-      <RoundedBox args={PLAYER_SIZE as Duplet} radius={0.2}>
-        <meshNormalMaterial />
-      </RoundedBox>
+      <Shadow rotation-x={Math.PI} scale={2} position={[0, -0.5, -0.1]} />
+      <Plane
+        position={[0.2, 0, -0.2]}
+        rotation={[Math.PI, 0, Math.PI]}
+        args={[1.5, 1.5]}
+      >
+        <meshStandardMaterial
+          color={0xffffff}
+          alphaTest={1}
+          map={trooperTexture}
+          transparent
+        />
+      </Plane>
+      <group
+        ref={crosshairGroupRef}
+        position={[-1, -1, -0.3]}
+        rotation={[Math.PI, 0, 0]}
+      >
+        <Plane args={[0.7, 0.7]}>
+          <meshStandardMaterial
+            color={0xffffff}
+            map={crosshairTexture}
+            transparent
+          />
+        </Plane>
+      </group>
     </group>
   )
 }
