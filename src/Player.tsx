@@ -1,48 +1,24 @@
-import {
-  Lookup,
-  animated,
-  config,
-  useSpring,
-  useSpringRef,
-} from '@react-spring/three'
-import { useFrame, useThree } from '@react-three/fiber'
-import { ReactNode, useEffect, useRef } from 'react'
-import crosshairUrl from './crosshair.png'
-import trooperUrl from './trooper.png'
-
-import { useControls } from './useControls'
-import { proxy } from 'valtio'
-import { useRapier } from './rapier'
 import { Collider, RigidBody } from '@dimforge/rapier2d-compat'
-import {
-  DoubleSide,
-  Group,
-  NearestFilter,
-  PlaneGeometry,
-  Texture,
-  Vector2,
-} from 'three'
-import { Duplet } from '.'
+import { config, useSpring } from '@react-spring/three'
 import { Plane, Shadow, useTexture } from '@react-three/drei'
-import { MOUSE_POSITION } from './App'
+import { useFrame, useThree } from '@react-three/fiber'
+import { ReactNode, useCallback, useEffect, useRef } from 'react'
+import { DoubleSide, Group, NearestFilter, Vector2 } from 'three'
 
-const player_state = proxy<{
-  facing: 'left' | 'right'
-  is_hurting: boolean
-  lifes: number
-  sprite_animation: 'idle' | 'running'
-}>({
-  facing: 'right',
-  is_hurting: false,
-  lifes: 3,
-  sprite_animation: 'idle',
-})
+import crosshairUrl from './assets/crosshair.png'
+import trooperUrl from './assets/trooper.png'
+import { addBullet } from './bullets-store'
+import { Duplet } from './common'
+import { MOUSE_POSITION } from './common'
+import { useRapier } from './rapier'
+import { useControls } from './useControls'
 
 const SPEED = 0.15
 const COS_SPEED = Math.cos(Math.PI / 4) * SPEED
-const COOLDOWN_SHOOT = 0.5
 
 const vec2 = new Vector2(0, 0)
+
+const COOLDOWN_SHOOT = 0.5
 
 export function Player({
   position,
@@ -56,9 +32,16 @@ export function Player({
   const groupRef = useRef<Group>(null)
   const crosshairGroupRef = useRef<Group>(null)
   const trooperGroupRef = useRef<Group>(null)
-  const elapsedTime = useRef(0)
   const controls = useControls()
   const { camera } = useThree()
+  const frameState = useRef({
+    lastShootTime: 0,
+    crosshair_x: 0,
+    crosshair_y: 0,
+    elapsedTime: 0,
+    x: 0,
+    y: 0,
+  })
 
   const {
     characterController: character_controller,
@@ -79,6 +62,21 @@ export function Player({
       }[key]),
   }))
 
+  const clickCallback = useCallback(() => {
+    // shoot bullet if cooldowned and input pressed
+    const { current: _frameState } = frameState
+    if (_frameState.elapsedTime - _frameState.lastShootTime <= COOLDOWN_SHOOT)
+      return
+    addBullet({
+      direction: [_frameState.crosshair_x, _frameState.crosshair_y],
+      position: [
+        _frameState.x + _frameState.crosshair_x,
+        _frameState.y + _frameState.crosshair_y,
+      ],
+    })
+    _frameState.lastShootTime = _frameState.elapsedTime
+  }, [])
+
   useEffect(() => {
     bodyRef.current = world.createRigidBody(
       rapier.RigidBodyDesc.kinematicPositionBased().setTranslation(...position),
@@ -87,70 +85,85 @@ export function Player({
       rapier.ColliderDesc.cuboid(0.5, 0.7),
       bodyRef.current,
     )
+    window.addEventListener('click', clickCallback)
     return () => {
       if (bodyRef.current) {
         world.removeRigidBody(bodyRef.current)
       }
+      window.removeEventListener('click', clickCallback)
     }
   }, [])
 
   useFrame((_, dt) => {
-    elapsedTime.current += dt
-    const { shoot, left, right, up, down } = controls.current
+    if (
+      !colliderRef.current ||
+      !bodyRef.current ||
+      !groupRef.current ||
+      !crosshairGroupRef.current ||
+      !trooperGroupRef.current
+    )
+      return
 
-    if (colliderRef.current && bodyRef.current && groupRef.current) {
-      const diag = (left || right) && (up || down)
-      const speed = diag ? COS_SPEED : SPEED
+    // get player input
+    const { left, right, up, down } = controls.current
+    const diag = (left || right) && (up || down)
+    const speed = diag ? COS_SPEED : SPEED
 
-      // get spring'd speed
-      const speedTarget = springs.speed.get()
-      // compute movement with collisions
-      character_controller.computeColliderMovement(colliderRef.current, {
-        x: speedTarget[0],
-        y: speedTarget[1],
-      })
-      const movement = character_controller.computedMovement()
-      // update body position
-      const newPos = bodyRef.current.translation()
-      newPos.x += movement.x
-      newPos.y += movement.y
-      bodyRef.current.setNextKinematicTranslation(newPos)
-      // update mesh positon
-      const { x, y } = bodyRef.current.translation()
-      groupRef.current.position.x = x
-      groupRef.current.position.y = y
-      // set spring (player and camera) target values
-      api.start({
-        speed: [
-          left ? speed : right ? -speed : 0,
-          up ? speed : down ? -speed : 0,
-        ],
-        cameraPos: [x, y],
-      })
-      // update camera position
-      const cameraPos = springs.cameraPos.get()
-      camera.position.x = cameraPos[0]
-      camera.position.y = cameraPos[1]
+    // get target speed as a filtered out value of d-pad
+    const speedTarget = springs.speed.get()
+    // compute movement with collisions
+    character_controller.computeColliderMovement(colliderRef.current, {
+      x: speedTarget[0],
+      y: speedTarget[1],
+    })
+    const movement = character_controller.computedMovement()
+    // update body position
+    const newPos = bodyRef.current.translation()
+    newPos.x += movement.x
+    newPos.y += movement.y
+    bodyRef.current.setNextKinematicTranslation(newPos)
+    // update mesh positon
+    const { x, y } = bodyRef.current.translation()
+    groupRef.current.position.x = x
+    groupRef.current.position.y = y
+    // set spring (player and camera) target values
+    api.start({
+      speed: [
+        left ? speed : right ? -speed : 0,
+        up ? speed : down ? -speed : 0,
+      ],
+      cameraPos: [x, y],
+    })
+    // update camera position
+    const cameraPos = springs.cameraPos.get()
+    camera.position.x = cameraPos[0]
+    camera.position.y = cameraPos[1]
 
-      if (crosshairGroupRef.current && trooperGroupRef.current) {
-        // compute crosshair angle
-        const { x: crosshair_x, y: crosshair_y } = vec2
-          .set(MOUSE_POSITION.x - x, MOUSE_POSITION.y - y)
-          .normalize()
-          .multiplyScalar(1.5)
-        crosshairGroupRef.current.position.x = crosshair_x
-        crosshairGroupRef.current.position.y = crosshair_y
+    // compute and set crosshair angle
+    const { x: crosshair_x, y: crosshair_y } = vec2
+      .set(MOUSE_POSITION.x - x, MOUSE_POSITION.y - y)
+      .normalize()
+      .multiplyScalar(1.5)
+    crosshairGroupRef.current.position.x = crosshair_x
+    crosshairGroupRef.current.position.y = crosshair_y
 
-        trooperGroupRef.current.scale.x = crosshair_x > 0 ? 1 : -1
-      }
-      if (trooperGroupRef.current) {
-        const { x, y } = bodyRef.current.linvel()
-        const speedRatio = (Math.abs(x) + Math.abs(y)) / (SPEED * 50)
-        const sinedTime = Math.sin(elapsedTime.current * 10)
-        trooperGroupRef.current.position.y = (sinedTime / 30) * (1 - speedRatio)
-        trooperGroupRef.current.rotation.z =
-          (sinedTime / 15) * speedRatio - Math.PI
-      }
+    // flip sprite dependent on cursor direction
+    trooperGroupRef.current.scale.x = crosshair_x > 0 ? 1 : -1
+
+    // get linear velocity and animate idle/walking as a function of it
+    const { x: vel_x, y: vel_y } = bodyRef.current.linvel()
+    const speedRatio = (Math.abs(vel_x) + Math.abs(vel_y)) / (SPEED * 50)
+    const sinedTime = Math.sin(frameState.current.elapsedTime * 10)
+    trooperGroupRef.current.position.y = (sinedTime / 30) * (1 - speedRatio)
+    trooperGroupRef.current.rotation.z = (sinedTime / 15) * speedRatio - Math.PI
+
+    frameState.current = {
+      elapsedTime: frameState.current.elapsedTime + dt,
+      lastShootTime: frameState.current.lastShootTime,
+      crosshair_x,
+      crosshair_y,
+      x,
+      y,
     }
   })
 
@@ -201,6 +214,7 @@ export function Player({
           />
         </Plane>
       </group>
+      {children}
     </group>
   )
 }

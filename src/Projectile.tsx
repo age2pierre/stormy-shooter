@@ -1,14 +1,14 @@
 import {
   ActiveCollisionTypes,
-  ActiveEvents,
   Collider,
   RigidBody,
 } from '@dimforge/rapier2d-compat'
-import { ReactNode, useEffect, useMemo, useRef } from 'react'
-import { useRapier } from './rapier'
-import { Group, Vector2 } from 'three'
-import { Duplet } from '.'
 import { useFrame } from '@react-three/fiber'
+import { ReactNode, useEffect, useMemo, useRef } from 'react'
+import { Group, Vector2 } from 'three'
+
+import { computeCollissionGroup, Duplet, PROJECTILE_GROUP } from './common'
+import { useRapier } from './rapier'
 
 export function Projectile({
   position,
@@ -18,6 +18,7 @@ export function Projectile({
   children,
   ttl = 10,
   onTimeout,
+  onCollide,
 }: {
   ttl?: number
   position: Duplet
@@ -26,6 +27,7 @@ export function Projectile({
   radius?: number
   children: ReactNode
   onTimeout?: () => void
+  onCollide?: (ev: { position: Duplet; target: Collider }) => void
 }) {
   const bodyRef = useRef<RigidBody | null>(null)
   const colliderRef = useRef<Collider | null>(null)
@@ -34,7 +36,7 @@ export function Projectile({
       .normalize()
       .multiplyScalar(speed)
     return [x, y] as const
-  }, [direction])
+  }, [direction, speed])
 
   const groupRef = useRef<Group>(null)
   const { rapier, world, registerCollisionEvent, cleanupCollisionEvent } =
@@ -53,8 +55,13 @@ export function Projectile({
       bodyRef.current,
     )
     registerCollisionEvent(colliderRef.current, (target) => {
-      console.log('projectile collided')
-      console.debug(target)
+      onCollide?.({
+        position: [
+          groupRef.current?.position.x ?? position[0],
+          groupRef.current?.position.y ?? position[1],
+        ],
+        target,
+      })
     })
     return () => {
       if (colliderRef.current) {
@@ -75,11 +82,12 @@ export function Projectile({
     if (!ttlRef.triggered && ttlRef.counter >= ttl) {
       onTimeout?.()
     }
-    if (bodyRef.current && groupRef.current) {
-      const { x, y } = bodyRef.current.translation()
-      groupRef.current.position.x = x
-      groupRef.current.position.y = y
-    }
+
+    if (!bodyRef.current || !groupRef.current) return
+
+    const { x, y } = bodyRef.current.translation()
+    groupRef.current.position.x = x
+    groupRef.current.position.y = y
   })
 
   return <group ref={groupRef}>{children}</group>

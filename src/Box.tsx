@@ -1,8 +1,9 @@
-import { Box as BoxDrei } from '@react-three/drei'
-import { Duplet } from '.'
-import { useRapier } from './rapier'
-import { useEffect, useRef } from 'react'
 import { RigidBody } from '@dimforge/rapier2d-compat'
+import { Box as BoxDrei } from '@react-three/drei'
+import { useEffect, useRef } from 'react'
+
+import { Duplet } from './common'
+import { useRapier } from './rapier'
 
 export function Box({ size, position }: { size: Duplet; position: Duplet }) {
   const { rapier, world } = useRapier()

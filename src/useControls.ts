@@ -2,8 +2,8 @@ import type { MutableRefObject } from 'react'
 import { useEffect, useRef } from 'react'
 
 function useKeyControls(
-    { current }: MutableRefObject<Record<GameControl, boolean>>,
-    map: Record<KeyCode, GameControl>,
+  { current }: MutableRefObject<Record<GameControl, boolean>>,
+  map: Record<KeyCode, GameControl>,
 ) {
   useEffect(() => {
     const handleKeydown = ({ key }: KeyboardEvent) => {
@@ -24,7 +24,6 @@ function useKeyControls(
 }
 
 const KEY_CONTROL_MAP = {
-  ' ': 'shoot',
   ArrowLeft: 'left',
   ArrowRight: 'right',
   ArrowUp: 'up',
@@ -33,22 +32,19 @@ const KEY_CONTROL_MAP = {
   d: 'right',
   s: 'down',
   z: 'up',
-  r: 'reset',
 } as const
 
 type KeyCode = keyof typeof KEY_CONTROL_MAP
-type GameControl = typeof KEY_CONTROL_MAP[KeyCode]
+type GameControl = (typeof KEY_CONTROL_MAP)[KeyCode]
 
 const keyCodes = Object.keys(KEY_CONTROL_MAP) as KeyCode[]
 const isKeyCode = (v: unknown): v is KeyCode => keyCodes.includes(v as KeyCode)
 
 export function useControls() {
   const controls = useRef<Record<GameControl, boolean>>({
-    shoot: false,
     up: false,
     down: false,
     left: false,
-    reset: false,
     right: false,
   })
 

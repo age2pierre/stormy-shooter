@@ -1,44 +1,23 @@
+import { AdaptiveDpr, Sky } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
-import { Player } from './Player'
-import { useEffect } from 'react'
-import { proxy } from 'valtio'
-import { Physics } from './rapier'
-import { Box } from './Box'
-import { AdaptiveDpr, Plane, Sky, Sphere } from '@react-three/drei'
-import { Projectile } from './Projectile'
 import {
   ChromaticAberration,
   EffectComposer,
-  Glitch,
   Scanline,
   Vignette,
 } from '@react-three/postprocessing'
-import { BlendFunction, GlitchMode } from 'postprocessing'
+import { BlendFunction } from 'postprocessing'
 
-export const game_store = proxy({
-  paused: false,
-})
-
-export const MOUSE_POSITION = {
-  x: 0,
-  y: 0,
-}
+import { Box } from './Box'
+import { BulletsManager } from './BulletsManager'
+// import { DebugRapier } from './DebugRapier'
+// import { useWindowFocus } from './game-store'
+import { MouseTracker } from './MouseTracker'
+import { Physics } from './Physics'
+import { Player } from './Player'
 
 export default function App() {
-  useEffect(() => {
-    const onOutOfFocus = () => {
-      game_store.paused = true
-    }
-    const onFocus = () => {
-      game_store.paused = false
-    }
-    window.onblur = onOutOfFocus
-    window.onfocus = onFocus
-    return () => {
-      window.onblur = null
-      window.onfocus = null
-    }
-  }, [])
+  // useWindowFocus()
 
   return (
     <div className="App">
@@ -65,7 +44,7 @@ export default function App() {
           <ChromaticAberration
             modulationOffset={0.1}
             radialModulation={true}
-            offset={[0.005, 0.01] as any}
+            offset={[0.003, 0.006] as any}
           />
           <Scanline
             density={0.5}
@@ -73,33 +52,19 @@ export default function App() {
             opacity={0.05}
           />
         </EffectComposer>
-        <Plane
-          args={[100, 100]}
-          rotation-x={Math.PI}
-          position={[0, 0, 0]}
-          onPointerMove={(event) => {
-            const { x, y } = event.point
-            MOUSE_POSITION.x = x
-            MOUSE_POSITION.y = y
-          }}
-        >
-          <meshStandardMaterial opacity={0} transparent />
-        </Plane>
         <ambientLight />
+        <MouseTracker />
         <AdaptiveDpr pixelated />
         <Physics>
           <Player position={[0, 2]} />
-          <Projectile direction={[-1, 0]} radius={0.2} position={[0, 4]}>
-            <Sphere args={[0.2]}>
-              <meshNormalMaterial />
-            </Sphere>
-          </Projectile>
+          <BulletsManager />
           <Box size={[8, 1]} position={[-15, 5]} />
           <Box size={[40, 1]} position={[0, -5]} />
           <Box size={[1, 6]} position={[2, 8]} />
           <Box size={[1, 10]} position={[-8, 0]} />
           <Box size={[3, 3]} position={[-3, 9]} />
           <Box size={[3, 3]} position={[-3, 9]} />
+          {/* <DebugRapier /> */}
         </Physics>
       </Canvas>
     </div>
