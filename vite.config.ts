@@ -4,6 +4,7 @@ import { defineConfig } from 'vite'
 import reactJsx from 'vite-react-jsx'
 
 export default defineConfig({
+  base: '/stormy-shooter/',
   build: {
     commonjsOptions: {
       transformMixedEsModules: true,

@@ -1,14 +1,10 @@
 import { nanoid } from 'nanoid'
-import { subscribe, useSnapshot } from 'valtio'
+import { useSnapshot } from 'valtio'
 import { proxy } from 'valtio'
 
 import { Duplet } from './common'
 
 const bullets_store = proxy<Record<BulletId, BulletInitState | null>>()
-
-subscribe(bullets_store, () => {
-  console.log('bullet_store => \n' + JSON.stringify(bullets_store, 2))
-})
 
 export type BulletId = string & { __brand: BulletId }
 
